@@ -1,0 +1,77 @@
+════════════════════════════════════════════════════════════════════
+    OLLAMA WITH GLOBAL TOOL ACCESS - FINAL SETUP
+════════════════════════════════════════════════════════════════════
+
+ONE-TIME SETUP:
+───────────────
+$ cd ollama-mcp-hub
+$ sudo bash INSTALL_GLOBAL.sh
+
+That's it! The wrapper is installed globally.
+
+
+THEN JUST USE OLLAMA NORMALLY:
+──────────────────────────────
+$ ollama serve                    # Terminal 1 - Keep running
+
+$ ollama run qwen:7b              # Terminal 2 - Just use normally!
+$ ollama run llama2
+$ ollama run mistral:7b
+$ ollama run neural-chat:7b
+$ ollama run ANY_MODEL
+
+NO DIFFERENCES. Works exactly like normal ollama, but with tools.
+
+
+WHAT HAPPENS:
+──────────────
+When you type:
+  $ ollama run qwen:7b
+
+The wrapper automatically:
+  ✓ Injects tool descriptions into the system prompt
+  ✓ Model knows about: read_file, write_file, bash_execute, git, memory, etc.
+  ✓ When model calls tools with <tool_use>...</tool_use>, they execute
+  ✓ Results returned to model for next response
+
+ALL AUTOMATICALLY. You don't do anything special.
+
+
+EXAMPLE CONVERSATION:
+─────────────────────
+$ ollama run qwen:7b
+
+You: Create a Python script that calculates fibonacci numbers
+[Model writes the script to a file]
+
+You: Run it
+[Model executes it and shows output]
+
+You: Add type hints to the function
+[Model edits the file]
+
+You: What did you just do?
+[Model searches memory and tells you]
+
+You: /model llama2
+Wait, no... just type: Switch to llama2
+
+Actually just use: ollama run llama2
+[Restart with new model, full memory preserved]
+
+
+TO RESTORE ORIGINAL:
+────────────────────
+$ sudo cp /path/to/ollama.bak /usr/bin/ollama
+
+(The backup location will be shown after you run INSTALL_GLOBAL.sh)
+
+
+════════════════════════════════════════════════════════════════════
+                     THAT'S YOUR SYSTEM NOW
+════════════════════════════════════════════════════════════════════
+
+One wrapper script. All models. All tools. No thinking about it.
+
+Just use `ollama run <model>` like you always have.
+It now has full developer tool access built in.

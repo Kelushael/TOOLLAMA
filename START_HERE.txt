@@ -1,0 +1,54 @@
+═══════════════════════════════════════════════════════════════════
+                   OLLAMA WITH FULL TOOL ACCESS
+═══════════════════════════════════════════════════════════════════
+
+STEP 1: Start Ollama (in first terminal)
+────────────────────────────────────────
+$ ollama serve
+
+
+STEP 2: Activate venv and start agent (in second terminal)
+──────────────────────────────────────────────────────────
+$ cd ollama-mcp-hub
+$ source venv/bin/activate
+$ python3 run_agent.py qwen:7b
+
+(or: python3 run_agent.py llama2)
+(or: python3 run_agent.py mistral:7b)
+
+
+STEP 3: Chat normally!
+─────────────────────
+You: Create a Python script that prints hello world
+[Agent creates the file and shows you]
+
+You: Run it
+[Agent executes it]
+
+You: Add a function to calculate fibonacci
+[Agent edits the file]
+
+
+SPECIAL COMMANDS:
+─────────────────
+/model mistral:7b  - Switch models (keeps all memory!)
+/memory            - Show what you've learned
+/search previous   - Find past conversations
+/tools             - List available tools
+/exit              - Quit
+
+
+═══════════════════════════════════════════════════════════════════
+                              THAT'S IT!
+═══════════════════════════════════════════════════════════════════
+
+It works exactly like ollama run, but with actual tools that execute.
+
+Model-agnostic: Use ANY Ollama model, switch anytime.
+Memory: Never forgets what you teach it.
+Tools: read/write files, run bash, git, search, more.
+
+Questions?
+- Check QUICKSTART.md for more details
+- Check ARCHITECTURE.md for how it works
+- Check ollama_mcp_hub.py to see the tools

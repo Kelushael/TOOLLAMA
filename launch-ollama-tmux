@@ -1,0 +1,44 @@
+#!/bin/bash
+"""
+Launch Ollama with Tools in TMux
+
+Left pane: Normal ollama chat
+Right pane: Tool execution (silent)
+
+Usage:
+  launch-ollama-tmux qwen:7b
+  launch-ollama-tmux gemma4:e4b
+  launch-ollama-tmux llama2
+"""
+
+MODEL="${1:-qwen:7b}"
+SESSION="ollama-tools-$$"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Create named pipe for tool execution
+TOOL_PIPE="/tmp/ollama-tools-$$"
+mkfifo "$TOOL_PIPE" 2>/dev/null || true
+
+# Create tmux session with two panes
+tmux new-session -d -s "$SESSION" -x 200 -y 50
+
+# Left pane: Ollama chat
+tmux send-keys -t "$SESSION" "echo '🚀 Launching $MODEL with background tool execution...'; echo ''; ollama run $MODEL" Enter
+
+# Wait for ollama to start
+sleep 2
+
+# Split vertically
+tmux split-window -t "$SESSION" -h
+
+# Right pane: Tool executor daemon
+tmux send-keys -t "$SESSION" "cd $SCRIPT_DIR && python3 tool_executor.py $SESSION" Enter
+
+# Set pane sizes (70% left, 30% right)
+tmux resize-pane -t "$SESSION.0" -x 140
+
+# Attach to session
+tmux attach-session -t "$SESSION"
+
+# Cleanup
+rm -f "$TOOL_PIPE"

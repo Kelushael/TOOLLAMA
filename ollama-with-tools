@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# Ultra-simple wrapper: Use ollama normally, but with tool context
+#
+# Usage:
+#   ./ollama-with-tools qwen:7b
+#   ./ollama-with-tools llama2
+#   ./ollama-with-tools mistral
+#
+# Then just chat normally!
+
+if [ -z "$1" ]; then
+    echo "Usage: ./ollama-with-tools <model>"
+    echo "Example: ./ollama-with-tools qwen:7b"
+    exit 1
+fi
+
+MODEL=$1
+
+# Check if ollama is running
+if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+    echo "❌ Ollama is not running!"
+    echo ""
+    echo "Start it with: ollama serve"
+    exit 1
+fi
+
+# Build system prompt with tools
+read -r -d '' SYSTEM_PROMPT << 'EOF'
+You are a helpful AI assistant with access to developer tools.
+
+Available tools:
+- read_file: Read file contents
+- write_file: Create or write to files
+- bash_execute: Run shell commands
+- list_directory: List directory contents
+- search_files: Find files with glob or grep
+- git_status: Check git repository status
+- git_commit: Create git commits
+- memory_save: Save important information to memory
+- memory_search: Search your memory for past information
+
+When you need to use a tool, respond with:
+<tool_use>
+{"name": "tool_name", "input": {"param": "value"}}
+</tool_use>
+
+Example - to list files:
+<tool_use>
+{"name": "list_directory", "input": {"path": "."}}
+</tool_use>
+
+Example - to read a file:
+<tool_use>
+{"name": "read_file", "input": {"path": "script.py"}}
+</tool_use>
+
+Use tools naturally when needed. You can use multiple tools in one message.
+EOF
+
+echo "🚀 Starting $MODEL with tools..."
+echo "Type 'exit' or Ctrl+C to quit"
+echo ""
+
+# Just run ollama normally with the system prompt injected
+ollama run "$MODEL" "$SYSTEM_PROMPT"

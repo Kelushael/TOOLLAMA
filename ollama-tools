@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+"""
+Ollama with Tools - Simple CLI for models with tool access
+
+Usage:
+  ollama-tools qwen:7b
+  ollama-tools gemma4:e4b
+  ollama-tools llama2
+"""
+
+import subprocess
+import sys
+import json
+import re
+import asyncio
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from ollama_mcp_hub import OllamaMCPHub
+
+hub = OllamaMCPHub()
+
+TOOLS_DESC = """Available tools:
+- read_file: Read file contents
+- write_file: Create or write files
+- bash_execute: Run shell commands
+- list_directory: List directory contents
+- search_files: Find files
+- git_status: Check git status
+- git_commit: Create commits
+- memory_save: Save to memory
+- memory_search: Search memory
+
+Use: <tool_use>{"name": "tool_name", "input": {...}}</tool_use>"""
+
+def parse_tool_calls(text):
+    """Extract tool calls from text."""
+    pattern = r'<tool_use>\s*({.*?})\s*</tool_use>'
+    for match in re.finditer(pattern, text, re.DOTALL):
+        try:
+            yield json.loads(match.group(1))
+        except:
+            pass
+
+async def execute_tool(name, args):
+    """Execute a tool."""
+    try:
+        return await hub.executor.execute(name, args)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+async def main():
+    if len(sys.argv) < 2:
+        print("Usage: ollama-tools <model>")
+        print("Example: ollama-tools qwen:7b")
+        sys.exit(1)
+
+    model = sys.argv[1]
+
+    print(f"\n🚀 {model} with tools\n")
+    print(TOOLS_DESC)
+    print("\nType your questions (Ctrl+D to exit):\n")
+
+    # Build prompt with tool context
+    system_prompt = f"""You are a helpful AI assistant.
+
+{TOOLS_DESC}
+
+When you need to use a tool, respond with the exact format:
+<tool_use>{{"name": "tool_name", "input": {{"param": "value"}}}}</tool_use>
+
+Think step by step. Use tools when needed."""
+
+    # Start ollama
+    proc = subprocess.Popen(
+        ["ollama", "run", model],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+
+    conversation = [{"role": "system", "content": system_prompt}]
+
+    try:
+        while True:
+            # Get user input
+            try:
+                user_msg = input("You: ").strip()
+            except EOFError:
+                break
+            except KeyboardInterrupt:
+                print("\n")
+                break
+
+            if not user_msg:
+                continue
+
+            conversation.append({"role": "user", "content": user_msg})
+
+            # Send conversation to ollama
+            prompt_text = "\n".join([
+                f"{msg['role'].upper()}: {msg['content']}"
+                for msg in conversation
+            ])
+
+            proc.stdin.write(prompt_text + "\nASSISTANT: ")
+            proc.stdin.flush()
+
+            # Read response
+            response = ""
+            for line in proc.stdout:
+                response += line
+                if response.count("\n") > 3:  # Rough heuristic
+                    break
+
+            response = response.strip()
+            if not response:
+                continue
+
+            print(f"Assistant: {response}\n")
+
+            # Execute any tool calls
+            for tool_call in parse_tool_calls(response):
+                name = tool_call.get("name")
+                args = tool_call.get("input", {})
+                print(f"  [Tool: {name}]", end=" ", flush=True)
+                result = await execute_tool(name, args)
+                if result.get("success"):
+                    print("✓")
+                else:
+                    print(f"✗ {result.get('error', 'Unknown error')}")
+
+                # Add tool result to conversation
+                result_text = json.dumps(result)
+                conversation.append({
+                    "role": "assistant",
+                    "content": response
+                })
+                conversation.append({
+                    "role": "system",
+                    "content": f"Tool {name} result: {result_text}"
+                })
+
+            conversation.append({"role": "assistant", "content": response})
+
+    except KeyboardInterrupt:
+        print("\n\nGoodbye!")
+    finally:
+        try:
+            proc.terminate()
+            proc.wait(timeout=2)
+        except:
+            proc.kill()
+
+if __name__ == "__main__":
+    asyncio.run(main())
